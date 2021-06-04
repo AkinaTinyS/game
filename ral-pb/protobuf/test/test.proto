@@ -1,0 +1,12 @@
+syntax = "proto2";
+option java_package = "com.ral.pb.test";
+
+
+message TestFirstMessage {
+    optional int32 id = 1;
+    optional string msg = 2;
+}
+Message TestSecondMessage {
+    optional int32 idTwo = 1;
+    optional string msgTwo = 2;
+}

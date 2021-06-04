@@ -1,11 +1,17 @@
-package com.ral.server.netty;
+package com.ral.server.system.netty;
 
+import com.ral.server.system.thread.GameTask;
+import com.ral.server.system.thread.GameThreadPool;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.util.ReferenceCountUtil;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class NettyServerHandler extends ChannelInboundHandlerAdapter {
@@ -21,6 +27,7 @@ public class NettyServerHandler extends ChannelInboundHandlerAdapter {
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         System.out.println("连接到客户端地址："+ctx.channel().remoteAddress());
         ctx.writeAndFlush("发送给客户端第一条消息");
+        // 存储用户数据
         super.channelActive(ctx);
     }
 
@@ -48,6 +55,7 @@ public class NettyServerHandler extends ChannelInboundHandlerAdapter {
     }
 
 
+
     /**
      * 业务逻辑处理
      */
@@ -55,21 +63,29 @@ public class NettyServerHandler extends ChannelInboundHandlerAdapter {
     public void channelRead(ChannelHandlerContext ctx,Object msg) throws Exception{
         System.out.println("第" + count.get() + "次" + ",服务端接受的消息:" + msg);
         try {
-            String message = (String) msg;
-            // 如果是protobuf类型的数据
-//            if (msg instanceof String) {
-//                UserMsg.User user = (UserMsg.User) msg;
-//                if (user.getState() == 1) {
-//                    log.info("客户端业务处理成功!");
-//                } else if(user.getState() == 2){
-//                    log.info("接受到客户端发送的心跳!");
-//                }else{
-//                    log.info("未知命令!");
-//                }
-//            } else {
-//                log.info("未知数据!" + msg);
-//                return;
-//            }
+            ByteBuf tb = null;
+            if (msg instanceof byte[]) {
+                //长度，协议号，用户
+                tb = Unpooled.copiedBuffer((byte[]) msg);
+                int len = tb.readInt();//判断拆包
+                int code = tb.readInt();
+                long userId  = tb.readLong();
+                if(code!=1) {
+                    byte[] bytes1 = new byte[tb.capacity() - 16];
+                    ByteBuf four = tb.readBytes(bytes1);
+                    sendToLogic(ctx,bytes1,code);
+                    System.out.println(111);
+                }else {
+                    System.out.println("心跳协议");
+                }
+            } else if (msg instanceof ByteBuf) {
+                tb = (ByteBuf) msg;
+            } else if (msg instanceof ByteBuffer) {
+                tb = Unpooled.copiedBuffer((ByteBuffer) msg);
+            } else {
+                String ostr = msg.toString();
+                tb = Unpooled.copiedBuffer(ostr, Charset.forName("UTF-8"));
+            }
             count.getAndIncrement();
             return;
         } catch (Exception e) {
@@ -89,4 +105,12 @@ public class NettyServerHandler extends ChannelInboundHandlerAdapter {
         cause.printStackTrace();
         ctx.close();
     }
+
+
+    protected void sendToLogic(ChannelHandlerContext ctx,byte[] bytes,int code ){
+        GameThreadPool.executeTask(new GameTask(ctx,bytes,code));
+    }
+
+
+
 }

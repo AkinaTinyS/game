@@ -1,6 +1,9 @@
 package com.ral.client.netty;
 
+import com.alibaba.fastjson.JSONObject;
 import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.EventLoop;
@@ -11,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.Date;
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class NettyClientHandler extends ChannelInboundHandlerAdapter {
@@ -25,7 +29,7 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
     private AtomicInteger fcount = new AtomicInteger(1);
 
 
-    private HashMap<Integer, ChannelHandlerContext> map;
+    public static ConcurrentHashMap<Integer, ChannelHandlerContext> map = new ConcurrentHashMap<>();
 
     public ChannelHandlerContext getMap() {
         if (map != null && map.size() > 0) {
@@ -71,9 +75,21 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
 //                        if (IdleState.WRITER_IDLE.equals(event.state())) {
             if (IdleState.READER_IDLE.equals(event.state())) {
 //                                UserMsg.User.Builder userState = UserMsg.User.newBuilder().setState(2);
-                String msg = "客户端发送心跳";
-                System.out.println("发送心跳给服务端");
-                ctx.channel().writeAndFlush(msg);
+                JSONObject json = new JSONObject();
+                json.put("protocol",1);
+                json.put("msg","heartbeat");
+                String msg = JSONObject.toJSONString(json);
+
+                ByteBuf buf = Unpooled.buffer(16);
+                //数据格式 长度，协议号，用户， int 4 long 8
+
+//        byte[] send = new byte[bytes.length+16];
+                buf.writeInt(16);//1
+                buf.writeInt(1);//2
+                buf.writeLong(0);//3
+
+                System.out.println(msg);
+                ctx.channel().writeAndFlush(buf.array());
                 fcount.getAndIncrement();
             }
         }
@@ -95,11 +111,15 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
 //                        UserMsg.User userMsg = (UserMsg.User) msg;
             // 进行相应的业务处理。。。
             // 这里就从简了，只是打印而已
-            String msgStr = (String) msg;
-            System.out.println("来自服务端的消息:" + msgStr);
+            JSONObject json = new JSONObject();
+            json.put("protocol",1);
+            json.put("msg","heartbeat");
+//            String msgStr = (String) msg;
+            String msgStr = json.toJSONString(json);
+//            System.out.println("来自服务端的消息:" + msgStr);
             // 这里返回一个已经接受到数据的状态
 //                        UserMsg.User.Builder userState = UserMsg.User.newBuilder().setState(1);
-            ctx.writeAndFlush("来自客户端的消息:消息接收成功");
+            ctx.writeAndFlush(msgStr);
             System.out.println("客户端告诉服务端消息已接收!消息内容：来自客户端的消息:消息接收成功");
         } catch (Exception e) {
             e.printStackTrace();

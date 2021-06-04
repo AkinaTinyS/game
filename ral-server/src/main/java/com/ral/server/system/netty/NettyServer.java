@@ -1,11 +1,9 @@
-package com.ral.server.netty;
+package com.ral.server.system.netty;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
@@ -24,19 +22,31 @@ public class NettyServer {
     public EventLoopGroup bossGroup;
 
     public EventLoopGroup workerGroup;
+    private EventLoopGroup work = new NioEventLoopGroup(1);
+
+    @PostConstruct
+    public void test(){
+        System.out.println("123123123");
+    }
 
     /**
      * 启动加载netty服务端
      */
     @PostConstruct
     public void init() throws InterruptedException {
+        load(new ServerBootstrap(), work);
+    }
+
+
+
+    public void load(ServerBootstrap b,EventLoopGroup bossGroup) throws InterruptedException {
         System.out.println("开始启动netty");
         //创建boss线程组 用于接收客户端的连接
-        bossGroup = new NioEventLoopGroup(1);
+//        bossGroup = new NioEventLoopGroup(1);
         //创建worker线程组 用于SocketChannel的数据读写
         workerGroup = new NioEventLoopGroup(12);
         //创建ServerBootstrap对象
-        ServerBootstrap b = new ServerBootstrap();
+//        ServerBootstrap b = new ServerBootstrap();
         //设置bootstrap
         b.group(bossGroup,workerGroup)
                 //设置被实例化为NioServerSocketChannel类
@@ -46,9 +56,8 @@ public class NettyServer {
                 //设置连接服务端的client的SocketChannel的处理器
                 .childHandler(new NettyServerInitializer());
         System.out.println("启动netty");
-        ChannelFuture f = b.bind(9000).sync();
-        f.channel().closeFuture().sync();
-
+        ChannelFuture f = b.bind(2000).sync();
+//        f.channel().closeFuture().sync();
     }
 
 

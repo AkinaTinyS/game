@@ -18,7 +18,7 @@ public class NettyClient {
 
     public String host = "127.0.0.1";
 
-    public Integer port = 9000;
+    public Integer port = 2000;
 
     public boolean initFalg = true;
 
